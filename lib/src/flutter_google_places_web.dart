@@ -5,6 +5,8 @@ import 'package:rainbow_color/rainbow_color.dart';
 import 'package:uuid/uuid.dart';
 import 'package:flutter_google_places_web/src/search_results_tile.dart';
 
+// Upadted by ashish
+
 class FlutterGooglePlacesWeb extends StatefulWidget {
   ///[value] stores the clicked address data in
   ///FlutterGooglePlacesWeb.value['name'] = '1600 Amphitheatre Parkway, Mountain View, CA, USA';
