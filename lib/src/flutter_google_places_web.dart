@@ -42,17 +42,22 @@ class FlutterGooglePlacesWeb extends StatefulWidget {
   ///For example: components=country:us|country:pr|country:vi|country:gu|country:mp would restrict your results to places within the United States and its unincorporated organized territories.
   final String components;
   final InputDecoration decoration;
-  final bool required;
+  // final bool required;
+  final String token;
 
-  FlutterGooglePlacesWeb(
-      {Key key,
-      this.apiKey,
-      this.proxyURL,
-      this.offset,
-      this.components,
-      this.sessionToken = true,
-      this.decoration,
-      this.required});
+  final Function(Address) onSelect;
+
+  FlutterGooglePlacesWeb({
+    Key key,
+    this.apiKey,
+    this.proxyURL,
+    this.offset,
+    this.components,
+    this.sessionToken = true,
+    this.decoration,
+    this.onSelect,
+    this.token,
+  });
 
   @override
   FlutterGooglePlacesWebState createState() => FlutterGooglePlacesWebState();
@@ -109,24 +114,37 @@ class FlutterGooglePlacesWebState extends State<FlutterGooglePlacesWeb>
       componentsURL = offsetURL + '&components=${widget.components}';
     }
     print(componentsURL);
-    Response response = await Dio().get(componentsURL);
-    var predictions = response.data['predictions'];
+
+    final url = "http://dev.kriips.com/merchants/api/Places?query=$inputText";
+
+    Options option = Options(headers: {
+      'Authorization': 'Bearer ${widget.token}',
+    });
+
+    Response response = await Dio().get(url, options: option);
+    var predictions = response.data['candidates'];
     if (predictions != []) {
       displayedResults.clear();
     }
 
     for (var i = 0; i < predictions.length; i++) {
-      String name = predictions[i]['description'];
-      String streetAddress =
-          predictions[i]['structured_formatting']['main_text'];
-      List<dynamic> terms = predictions[i]['terms'];
-      String city = terms[terms.length - 2]['value'];
-      String country = terms[terms.length - 1]['value'];
+      String name = predictions[i]['name'];
+      String streetAddress = predictions[i]['formatted_address'];
+      // List<dynamic> terms = predictions[i]['terms'];
+      // String placeID = predictions[i]['place_id'];
+      // String city = terms[terms.length - 2]['value'];
+      // String country = terms[terms.length - 1]['value'];
+      var location = predictions[i]['geometry']['location'];
+      double lat = location['lat'];
+      double long = location['lng'];
+
       displayedResults.add(Address(
         name: name,
-        streetAddress: streetAddress,
-        city: city,
-        country: country,
+        // streetAddress: streetAddress ??'',
+        // city: city ?? '',
+        // country: country ?? '',
+        lat: lat,
+        long: long,
       ));
     }
 
@@ -134,6 +152,8 @@ class FlutterGooglePlacesWebState extends State<FlutterGooglePlacesWeb>
   }
 
   selectResult(Address clickedAddress) {
+    widget.onSelect(clickedAddress);
+
     setState(() {
       FlutterGooglePlacesWeb.showResults = false;
       controller.text = clickedAddress.name;
@@ -173,81 +193,80 @@ class FlutterGooglePlacesWebState extends State<FlutterGooglePlacesWeb>
       direction: Axis.vertical,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Flexible(
-          fit: FlexFit.loose,
-          child: Container(
-            alignment: Alignment.center,
-            child: Stack(
-              children: [
-                //search field
-                TextFormField(
-                  key: widget.key,
-                  controller: controller,
-                  decoration: widget.decoration,
-                  validator: (value) {
-                    if (widget.required == true && value.isEmpty) {
-                      return 'Please enter an address';
-                    }
-                    return null;
-                  },
-                  onChanged: (text) {
-                    setState(() {
-                      getLocationResults(text);
-                    });
-                  },
-                ),
-                FlutterGooglePlacesWeb.showResults
-                    ? Padding(
-                        padding: EdgeInsets.only(top: 50),
-                        child: Container(
-                          width: MediaQuery.of(context).size.width,
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Flexible(
-                                fit: FlexFit.loose,
-                                child: displayedResults.isEmpty
-                                    ? Container(
-                                        padding: EdgeInsets.only(
-                                            top: 102, bottom: 102),
-                                        child: CircularProgressIndicator(
-                                          valueColor: _loadingTween,
-                                          strokeWidth: 6.0,
-                                        ),
-                                      )
-                                    : ListView(
-                                        shrinkWrap: true,
-                                        children: displayedResults
-                                            .map((Address addressData) =>
-                                                SearchResultsTile(
-                                                    addressData: addressData,
-                                                    callback: selectResult,
-                                                    address:
-                                                        FlutterGooglePlacesWeb
-                                                            .value))
-                                            .toList(),
+        Container(
+          alignment: Alignment.center,
+          child: Stack(
+            children: [
+              //search field
+              TextFormField(
+                key: widget.key,
+                controller: controller,
+                decoration: widget.decoration,
+                validator: (value) {
+                  if (value.isEmpty) {
+                    return 'Please enter an address';
+                  }
+                  return null;
+                },
+                onChanged: (text) {
+                  setState(() {
+                    getLocationResults(text);
+                  });
+                },
+              ),
+              FlutterGooglePlacesWeb.showResults
+                  ? Padding(
+                      padding: EdgeInsets.only(top: 50),
+                      child: Container(
+                        width: MediaQuery.of(context).size.width,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Flexible(
+                              fit: FlexFit.loose,
+                              child: displayedResults.isEmpty
+                                  ? Container(
+                                      padding: EdgeInsets.only(
+                                          top: 102, bottom: 102),
+                                      child: CircularProgressIndicator(
+                                        valueColor: _loadingTween,
+                                        strokeWidth: 6.0,
                                       ),
+                                    )
+                                  : ListView(
+                                      shrinkWrap: true,
+                                      children: displayedResults
+                                          .map(
+                                            (Address addressData) =>
+                                                SearchResultsTile(
+                                              addressData: addressData,
+                                              callback: selectResult,
+                                              address:
+                                                  FlutterGooglePlacesWeb.value,
+                                            ),
+                                          )
+                                          .toList(),
+                                    ),
+                            ),
+                            Container(
+                              height: 30,
+                              child: Image.asset(
+                                'packages/flutter_google_places/assets/google_white.png',
+                                scale: 3,
                               ),
-                              Container(
-                                height: 30,
-                                child: Image.asset(
-                                  'packages/flutter_google_places/assets/google_white.png',
-                                  scale: 3,
-                                ),
-                              ),
-                            ],
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            border:
-                                Border.all(color: Colors.grey[200], width: 0.5),
-                          ),
+                            ),
+                          ],
                         ),
-                      )
-                    : Container(),
-              ],
-            ),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          border:
+                              Border.all(color: Colors.grey[200], width: 0.5),
+                        ),
+                      ),
+                    )
+                  : Container(),
+            ],
           ),
         ),
       ],
@@ -267,5 +286,16 @@ class Address {
   String streetAddress;
   String city;
   String country;
-  Address({this.name, this.streetAddress, this.city, this.country});
+  String placeID;
+  double lat;
+  double long;
+  Address({
+    this.name,
+    this.streetAddress,
+    this.city,
+    this.country,
+    this.placeID,
+    this.lat,
+    this.long,
+  });
 }
