@@ -11,7 +11,7 @@ class SearchResultsTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListTile(
         title: Text(
-          '${addressData.name}',
+          '${addressData.streetAddress}',
           style: TextStyle(fontSize: 16),
         ),
         dense: true,
